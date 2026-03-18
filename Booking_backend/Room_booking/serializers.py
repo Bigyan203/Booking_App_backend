@@ -19,12 +19,33 @@ class OccupiedDatesSerializer(serializers.HyperlinkedModelSerializer):
         view_name='user-detail',
         queryset=User.objects.all()
     )
+    
     class Meta:
         model = OccupiedDates
         fields = ['url', 'id', 'room', 'date', 'user']
         extra_kwargs = {        #yo part afai rakeko, url recognize nagareko vera
             'url': {'view_name': 'occupied-dates-detail'}
         }
+
+    def validate(self, data):
+        """Check if the room is already booked for the given date"""
+        room = data.get('room')
+        date = data.get('date')
+        
+        # If updating an existing booking, exclude the current instance
+        if self.instance:
+            if OccupiedDates.objects.filter(room=room, date=date).exclude(pk=self.instance.pk).exists():
+                raise serializers.ValidationError(
+                    "This room is already booked for the selected date."
+                )
+        else:
+            # For new bookings
+            if OccupiedDates.objects.filter(room=room, date=date).exists():
+                raise serializers.ValidationError(
+                    "This room is already booked for the selected date."
+                )
+        
+        return data
 
 class RoomSerializer(serializers.HyperlinkedModelSerializer):
     images = RoomImageSerializer(many=True, read_only=True)
